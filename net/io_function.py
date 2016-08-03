@@ -65,7 +65,7 @@ def getShuffledMiniBatch(num_examples,image,label):
 def randomFlips(image):
 	#geometric distortion
 	distorted_image = tf.image.random_flip_left_right(image)
-	#distorted_image = tf.image.random_flip_up_down(distorted_image)
+	distorted_image = tf.image.random_flip_up_down(distorted_image)
 	
 	return distorted_image
 

@@ -17,13 +17,19 @@ DEPTH = 3
 
 IMAGE_SHAPE = [ROWS,COLS,DEPTH]
 
-WORKING_SHAPE = [ROWS,COLS,1]
+WORKING_SHAPE = [ROWS,COLS,DEPTH]
 
 BATCH_SIZE = 64
+POS_EXAMPLE_TRAIN = 65545
+NEG_EXAMPLE_TRAIN = 26871 
+TOTAL_EXAMPLE = POS_EXAMPLE_TRAIN + NEG_EXAMPLE_TRAIN
+STEP_PER_EPOCH = TOTAL_EXAMPLE/BATCH_SIZE
 
 CLASSES = 2
 
 LEARNING_RATE = 0.0001
+
+ONLY_DEPTH = False
 
 def main(root_dir, logdir):
 	#-------------------------------------------------------------------------------
@@ -33,7 +39,7 @@ def main(root_dir, logdir):
 	keep_prob = tf.placeholder(tf.float32, name="drop_prob")
 	l_r = tf.placeholder(tf.float32, name="learning_rate")
 
-	images_ = tf.placeholder(tf.float32, shape=[BATCH_SIZE,ROWS,COLS,1],name="image_placeholder")
+	images_ = tf.placeholder(tf.float32, shape=[BATCH_SIZE,ROWS,COLS,DEPTH],name="image_placeholder")
 	labels_ = tf.placeholder(tf.int64, shape=[None], name="labels_plaeholder")
 
 	#read inputs
@@ -46,12 +52,12 @@ def main(root_dir, logdir):
 	print('Going to test on ', filenames_val)
 
 	#train_batch
-	images,labels = read_and_decode_single_example(filenames_train, IMAGE_SHAPE, True)
-	images = randomFlips(images)
+	images,labels = read_and_decode_single_example(filenames_train, IMAGE_SHAPE, ONLY_DEPTH)
+	#images = randomFlips(images)
 	images_batch,labels_batch = getShuffledMiniBatch(BATCH_SIZE,images,labels)
 
 	#val batch
-	images_v,labels_v = read_and_decode_single_example(filenames_val, IMAGE_SHAPE, True)
+	images_v,labels_v = read_and_decode_single_example(filenames_val, IMAGE_SHAPE, ONLY_DEPTH)
 	images_batch_v, labels_batch_v = getShuffledMiniBatch(BATCH_SIZE,images_v,labels_v)
 
 	#visualize image in tensorboard
@@ -59,13 +65,10 @@ def main(root_dir, logdir):
 
 	
 	#models
-	model = buildNet(images_,keep_prob, BATCH_SIZE,2,WORKING_SHAPE)
+	model = buildLeNet(images_,keep_prob, BATCH_SIZE,2,WORKING_SHAPE)
 
 	#weights to handle unbalanced training set
-	pos = 82283	
-	neg = 38687
-	tot = pos+neg
-	weights = tf.constant([neg/tot,pos/tot])
+	weights = tf.constant([NEG_EXAMPLE_TRAIN/TOTAL_EXAMPLE,POS_EXAMPLE_TRAIN/TOTAL_EXAMPLE])
 	#weights = tf.ones([1,CLASSES],tf.float32)
 
 	#loss
@@ -137,8 +140,8 @@ def main(root_dir, logdir):
 				examples_per_sec = num_examples_per_step / duration
 				sec_per_batch = float(duration)
 				#print(losses_history,'\n',sum(losses_history),'\n',len(losses_history),'\n')
-				format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)')
-				print (format_str % (datetime.now(), step, loss_value,examples_per_sec, sec_per_batch))
+				format_str = ('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)')
+				print (format_str % (datetime.now(), step/STEP_PER_EPOCH, step, loss_value,examples_per_sec, sec_per_batch))
 
 				#compute validation score, save average loss
 				val_images, val_labels = sess.run([images_batch_v,labels_batch_v])

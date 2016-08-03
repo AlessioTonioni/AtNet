@@ -16,11 +16,13 @@ COLS = 61
 DEPTH = 3
 
 IMAGE_SHAPE = [ROWS,COLS,DEPTH]
-WORKING_SHAPE = [ROWS,COLS,1]
+WORKING_SHAPE = [ROWS,COLS,DEPTH]
 
 CLASSES = 2
 
 BATCH_SIZE = 1
+
+ONLY_DEPTH = False
 
 def main(root_dir, log_dir):
 	#-------------------------------------------------------------------------------
@@ -30,7 +32,7 @@ def main(root_dir, log_dir):
 	global_step = tf.Variable(0,trainable=False,name="global_step")
 	keep_prob = tf.placeholder(tf.float32, name="drop_prob")
 
-	images_ = tf.placeholder(tf.float32, shape=[BATCH_SIZE,ROWS,COLS,1],name="image_placeholder")
+	images_ = tf.placeholder(tf.float32, shape=[BATCH_SIZE,ROWS,COLS,DEPTH],name="image_placeholder")
 	labels_ = tf.placeholder(tf.int64, shape=[None], name="labels_plaeholder")
 
 	#read inputs
@@ -41,12 +43,12 @@ def main(root_dir, log_dir):
 	#keep something as validation? 
 
 	#train_batch
-	images,labels = read_and_decode_single_example(filenames_test, IMAGE_SHAPE, True)
+	images,labels = read_and_decode_single_example(filenames_test, IMAGE_SHAPE, ONLY_DEPTH)
 	#images = augmentData(images)
 	images_batch,labels_batch = getShuffledMiniBatch(BATCH_SIZE,images,labels)
 
 	#models
-	model = buildNet(images_,keep_prob, BATCH_SIZE,CLASSES,WORKING_SHAPE)
+	model = buildLeNet(images_,keep_prob, BATCH_SIZE,CLASSES,WORKING_SHAPE)
 
 	#create a saver to save and restore models
 	saver = tf.train.Saver(tf.all_variables())
