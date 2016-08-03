@@ -16,6 +16,7 @@ COLS = 61
 DEPTH = 3
 
 IMAGE_SHAPE = [ROWS,COLS,DEPTH]
+WORKING_SHAPE = [ROWS,COLS,1]
 
 CLASSES = 2
 
@@ -45,7 +46,7 @@ def main(root_dir, log_dir):
 	images_batch,labels_batch = getShuffledMiniBatch(BATCH_SIZE,images,labels)
 
 	#models
-	model = buildNet(images_,keep_prob, BATCH_SIZE,CLASSES,IMAGE_SHAPE)
+	model = buildNet(images_,keep_prob, BATCH_SIZE,CLASSES,WORKING_SHAPE)
 
 	#create a saver to save and restore models
 	saver = tf.train.Saver(tf.all_variables())
@@ -89,7 +90,7 @@ def main(root_dir, log_dir):
 			threads.extend(qr.create_threads(sess, coord=coord, daemon=True, start=True))
 	
 		#num_iter = int(math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL/BATCH_SIZE))
-		num_iter = 100
+		num_iter = 1000
 		true_count = 0
 		total_sample_Count = num_iter*BATCH_SIZE
 		step=0
@@ -106,10 +107,10 @@ def main(root_dir, log_dir):
 				})
 			#print(res)
 			#print(imgs)
-			print(lbls)
-			print(correct)
-			print(output)
-			print('------------------------------')
+			#print(lbls)
+			#print(correct)
+			#print(output)
+			#print('------------------------------')
 			if correct:
 				true_count +=1
 			if np.argmax(output) == 0:

@@ -1,1 +1,1 @@
-python net/train_model.py '/mnt/data/kpl_conv/binary_ts/' '/mnt/data/kpl_conv/train_weights/'
+python net/train_model.py '//media/alessio/Data/Projects/KeypointLearningConvolutional/TrainingSet/binary/' '/home/alessio/projects/AtNet/kpl_conv_weights/'

@@ -17,7 +17,11 @@ DEPTH = 3
 
 IMAGE_SHAPE = [ROWS,COLS,DEPTH]
 
+WORKING_SHAPE = [ROWS,COLS,1]
+
 BATCH_SIZE = 64
+
+CLASSES = 2
 
 LEARNING_RATE = 0.0001
 
@@ -55,14 +59,14 @@ def main(root_dir, logdir):
 
 	
 	#models
-	model = buildNet(images_,keep_prob, BATCH_SIZE,2,IMAGE_SHAPE)
+	model = buildNet(images_,keep_prob, BATCH_SIZE,2,WORKING_SHAPE)
 
 	#weights to handle unbalanced training set
 	#pos = 82283	
 	#neg = 38687
 	#tot = pos+neg
 	#weights = tf.constant([neg/tot,pos/tot])
-	weights = tf.constant([0.03,1.0])
+	weights = tf.ones([1,CLASSES],tf.float32)
 
 	#loss
 	loss = computeLoss(model,labels_,weights,False)
@@ -84,7 +88,7 @@ def main(root_dir, logdir):
 		average_summary = tf.scalar_summary("average_loss", average_pl)
 
 		#placeholder to print average validation accuracy
-		average_val_acc = tf,placeholder(tf.float32)
+		average_val_acc = tf.placeholder(tf.float32)
 		val_summary = tf.scalar_summary("average_validation_accuracy",average_val_acc)
 
 		#init operation
@@ -136,7 +140,9 @@ def main(root_dir, logdir):
 				format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)')
 				print (format_str % (datetime.now(), step, loss_value,examples_per_sec, sec_per_batch))
 
-				val_accuracy = sess.run([accuracy], 
+				#compute validation score, save average loss
+				val_images, val_labels = sess.run([images_batch_v,labels_batch_v])
+				val_accuracy = sess.run(accuracy, 
 					feed_dict={
 					keep_prob:1.0, 
 					l_r:LEARNING_RATE,
@@ -147,13 +153,11 @@ def main(root_dir, logdir):
 				val_acc_history.append(val_accuracy)
 
 			if step % 100 == 0:
-				#compute validation score, save average loss
-				val_images, val_labels = sess.run([images_batch_v,labels_batch_v])
 				#print('Losses_avg: ',sum(losses_history),'\n',len(losses_history),'\n')
 				avg_loss = sum(losses_history)/len(losses_history)
 				avg_val = sum(val_acc_history)/len(val_acc_history)
 					
-				output,val_accuracy,summary_str = sess.run([softmaxed,accuracy, summary_op], 
+				summary_str = sess.run(summary_op, 
 					feed_dict={
 					keep_prob:1.0, 
 					l_r:LEARNING_RATE,
@@ -171,7 +175,7 @@ def main(root_dir, logdir):
 					labels_:train_labels
 					})
 
-				print("step %d, validation accuracy %g, train_accuracy %g, avg loss %g"%(step,val_accuracy,train_accuracy, avg_loss))
+				print("step %d, avg validation accuracy %g, train_accuracy %g, avg loss %g"%(step,avg_val,train_accuracy, avg_loss))
 				sum_writer.add_summary(summary_str, step)
 				losses_history = []
 				val_acc_history = []
