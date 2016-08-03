@@ -62,11 +62,11 @@ def main(root_dir, logdir):
 	model = buildNet(images_,keep_prob, BATCH_SIZE,2,WORKING_SHAPE)
 
 	#weights to handle unbalanced training set
-	#pos = 82283	
-	#neg = 38687
-	#tot = pos+neg
-	#weights = tf.constant([neg/tot,pos/tot])
-	weights = tf.ones([1,CLASSES],tf.float32)
+	pos = 82283	
+	neg = 38687
+	tot = pos+neg
+	weights = tf.constant([neg/tot,pos/tot])
+	#weights = tf.ones([1,CLASSES],tf.float32)
 
 	#loss
 	loss = computeLoss(model,labels_,weights,False)

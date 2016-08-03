@@ -95,7 +95,9 @@ def main(root_dir, log_dir):
 		total_sample_Count = num_iter*BATCH_SIZE
 		step=0
 		predicted_pos = 0
+		true_positive = 0
 		predicted_neg = 0
+		true_negative = 0
 		while step<num_iter and not coord.should_stop():
 			imgs, lbls = sess.run([images_batch,labels_batch])
 			#predictions = sess.run([top_k_op], feed_dict={keep_prob:1.0})
@@ -114,8 +116,12 @@ def main(root_dir, log_dir):
 			if correct:
 				true_count +=1
 			if np.argmax(output) == 0:
+				if correct:
+					true_negative +=1
 				predicted_neg +=1
 			else:
+				if correct:
+					true_positive +=1
 				predicted_pos +=1
 			#true_count = np.sum(predictions)
 			step+=1
@@ -124,7 +130,7 @@ def main(root_dir, log_dir):
 		precision = true_count / step
 		#running_acc /= step
 		print('%s: precision after %d step @ 1 = %.3f' % (datetime.now(),step, precision))
-		print('Predicted Positive: %d\nPredicted Negative: %d'%(predicted_pos,predicted_neg))
+		print('Predicted Positive: %d - TP %d\nPredicted Negative: %d - TN %d'%(predicted_pos,true_positive,predicted_neg, true_negative))
 		#print('%s: precision after %d step @ 1 = %.3f' % (datetime.now(),step, running_acc))
 	
 		#summary = tf.Summary()
