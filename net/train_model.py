@@ -13,23 +13,24 @@ from io_function import *
 
 ROWS = 61
 COLS = 61
-DEPTH = 3
+DEPTH = 1
 
-IMAGE_SHAPE = [ROWS,COLS,DEPTH]
+IMAGE_SHAPE = [ROWS,COLS,3]
 
 WORKING_SHAPE = [ROWS,COLS,DEPTH]
 
 BATCH_SIZE = 64
-POS_EXAMPLE_TRAIN = 65545
-NEG_EXAMPLE_TRAIN = 26871 
+POS_EXAMPLE_TRAIN = 94179
+NEG_EXAMPLE_TRAIN = 75934 
 TOTAL_EXAMPLE = POS_EXAMPLE_TRAIN + NEG_EXAMPLE_TRAIN
 STEP_PER_EPOCH = TOTAL_EXAMPLE/BATCH_SIZE
+LR_COUNTDOWN = 8
 
 CLASSES = 2
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.000001
 
-ONLY_DEPTH = False
+ONLY_DEPTH = True
 
 def main(root_dir, logdir):
 	#-------------------------------------------------------------------------------
@@ -44,9 +45,9 @@ def main(root_dir, logdir):
 
 	#read inputs
 	filenames_list = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if os.path.isfile(os.path.join(root_dir, f)) and f[-8:] == 'tfrecord']
-	filenames_train = [f for f in filenames_list if "30_42" not in f]
+	filenames_train = [f for f in filenames_list if "39_42" not in f]
 	random.shuffle(filenames_train)
-	filenames_val = [f for f in filenames_list if "30_42" in f]
+	filenames_val = [f for f in filenames_list if "39_42" in f]
 	random.shuffle(filenames_val)
 	print('Going to train on ', filenames_train)
 	print('Going to test on ', filenames_val)
@@ -65,11 +66,11 @@ def main(root_dir, logdir):
 
 	
 	#models
-	model = buildLeNet(images_,keep_prob, BATCH_SIZE,2,WORKING_SHAPE)
+	model = buildDeepNet(images_,keep_prob, BATCH_SIZE,CLASSES,WORKING_SHAPE)
 
 	#weights to handle unbalanced training set
-	weights = tf.constant([NEG_EXAMPLE_TRAIN/TOTAL_EXAMPLE,POS_EXAMPLE_TRAIN/TOTAL_EXAMPLE])
-	#weights = tf.ones([1,CLASSES],tf.float32)
+	#weights = tf.constant([NEG_EXAMPLE_TRAIN/TOTAL_EXAMPLE,POS_EXAMPLE_TRAIN/TOTAL_EXAMPLE])
+	weights = tf.ones([1,CLASSES],tf.float32)
 
 	#loss
 	loss = computeLoss(model,labels_,weights,False)
@@ -94,6 +95,10 @@ def main(root_dir, logdir):
 		average_val_acc = tf.placeholder(tf.float32)
 		val_summary = tf.scalar_summary("average_validation_accuracy",average_val_acc)
 
+		#placeholder to print average train accuracy
+		average_train_acc = tf.placeholder(tf.float32)
+		val_summary = tf.scalar_summary("average_train_accuracy",average_train_acc)
+
 		#init operation
 		init = tf.initialize_all_variables()
 
@@ -104,29 +109,47 @@ def main(root_dir, logdir):
 	#-----------------------------------------------------------------------------------------------
 	#                                          TRAINING
 	#-----------------------------------------------------------------------------------------------
-	with tf.Session() as sess:
+	with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
 		#logging folder 
 		if not os.path.exists(logdir+'/log/'):
 			os.makedirs(logdir+'/log/')
 		if not os.path.exists(logdir+'/weights/'):
 			os.makedirs(logdir+'/weights/')
 		sum_writer = tf.train.SummaryWriter(logdir+'/log/',sess.graph)
-		#init all variables
-		sess.run(init)
+
+		step = 0
+		ckpt = tf.train.get_checkpoint_state(logdir+'/weights/')
+		if ckpt and ckpt.model_checkpoint_path:
+			print('Founded valid checkpoint file at: '+ckpt.model_checkpoint_path)
+			
+			#restore variable
+			saver.restore(sess, ckpt.model_checkpoint_path)
+		
+			#restore step
+			step = int(ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1])
+			print('Restored %d step model'%(step))
+		else:
+			print('No checkpoint file found, initialization instead')
+			#init all variables
+			sess.run(init)
 
 		#start queue
 		tf.train.start_queue_runners(sess=sess)
 
+		best_loss = np.inf
+		lr_countdown = LR_COUNTDOWN
+		working_lr = LEARNING_RATE
 		losses_history = []
 		val_acc_history = []
-		for step in range(10000):
+		train_acc_history = []
+		while step < 40000:
 			start_time = time.time()
 			train_images, train_labels = sess.run([images_batch,labels_batch])
 
 			_, loss_value = sess.run([train_op, loss], 
 				feed_dict={
 				keep_prob:0.5,
-				l_r:LEARNING_RATE,
+				l_r:working_lr,
 				images_:train_images,
 				labels_:train_labels
 				})
@@ -148,45 +171,62 @@ def main(root_dir, logdir):
 				val_accuracy = sess.run(accuracy, 
 					feed_dict={
 					keep_prob:1.0, 
-					l_r:LEARNING_RATE,
+					l_r:working_lr,
 					images_:val_images,
 					labels_:val_labels
 				})
 
+				train_accuracy=sess.run(accuracy,
+					feed_dict={
+					keep_prob:1.0,
+					l_r:working_lr,
+					images_:train_images,
+					labels_:train_labels
+					})
+
 				val_acc_history.append(val_accuracy)
+				train_acc_history.append(train_accuracy)
 
 			if step % 100 == 0:
 				#print('Losses_avg: ',sum(losses_history),'\n',len(losses_history),'\n')
 				avg_loss = sum(losses_history)/len(losses_history)
 				avg_val = sum(val_acc_history)/len(val_acc_history)
+				avg_train = sum(train_acc_history)/len(train_acc_history)
+
+				if avg_loss<best_loss:
+					best_loss = avg_loss
+					lr_countdown=LR_COUNTDOWN
+				else:
+					lr_countdown-=1
+					if lr_countdown==0:
+						best_loss = avg_loss
+						working_lr = working_lr/2
+						lr_countdown = LR_COUNTDOWN
 					
 				summary_str = sess.run(summary_op, 
 					feed_dict={
 					keep_prob:1.0, 
-					l_r:LEARNING_RATE,
+					l_r:working_lr,
 					images_:val_images,
 					labels_:val_labels,
 					average_pl: avg_loss,
-					average_val_acc: avg_val
+					average_val_acc: avg_val,
+					average_train_acc: avg_train
 					})
 
-				train_accuracy = sess.run(accuracy,
-					feed_dict={
-					keep_prob:1.0, 
-					l_r:LEARNING_RATE,
-					images_:train_images,
-					labels_:train_labels
-					})
-
-				print("step %d, avg validation accuracy %g, train_accuracy %g, avg loss %g"%(step,avg_val,train_accuracy, avg_loss))
+				print("step %d, avg validation accuracy %g, avg train accuracy %g, avg loss %g, learning rate %g, countdown %d"%(step,avg_val,avg_train, avg_loss, working_lr, lr_countdown))
 				sum_writer.add_summary(summary_str, step)
 				losses_history = []
 				val_acc_history = []
+				train_acc_history = []
 
 			# Save the model checkpoint periodically.
 			if step % 1000 == 0 or (step + 1) == 10000 or (step<1000 and step%100==0):
 				checkpoint_path = os.path.join(logdir+'/weights/', 'model.ckpt')
 				saver.save(sess, checkpoint_path, global_step=step)
+
+			# Increase step
+			step+=1
 
 if __name__=='__main__':
 	main(sys.argv[1], sys.argv[2])

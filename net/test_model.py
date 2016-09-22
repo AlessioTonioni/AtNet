@@ -13,16 +13,16 @@ from io_function import *
 
 ROWS = 61
 COLS = 61
-DEPTH = 3
+DEPTH = 1
 
-IMAGE_SHAPE = [ROWS,COLS,DEPTH]
+IMAGE_SHAPE = [ROWS,COLS,3]
 WORKING_SHAPE = [ROWS,COLS,DEPTH]
 
 CLASSES = 2
 
 BATCH_SIZE = 1
 
-ONLY_DEPTH = False
+ONLY_DEPTH = True
 
 def main(root_dir, log_dir):
 	#-------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ def main(root_dir, log_dir):
 	labels_ = tf.placeholder(tf.int64, shape=[None], name="labels_plaeholder")
 
 	#read inputs
-	filenames_list = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if os.path.isfile(os.path.join(root_dir, f)) and f[-8:] == 'tfrecord' and "T-rex" in f]
+	filenames_list = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if os.path.isfile(os.path.join(root_dir, f)) and f[-8:] == 'tfrecord' and "39_42" in f]
 	filenames_test = filenames_list
 	random.shuffle(filenames_test)
 	print('Going to test on ', filenames_test)
@@ -48,7 +48,7 @@ def main(root_dir, log_dir):
 	images_batch,labels_batch = getShuffledMiniBatch(BATCH_SIZE,images,labels)
 
 	#models
-	model = buildLeNet(images_,keep_prob, BATCH_SIZE,CLASSES,WORKING_SHAPE)
+	model = buildDeepNet(images_,keep_prob, BATCH_SIZE,CLASSES,WORKING_SHAPE)
 
 	#create a saver to save and restore models
 	saver = tf.train.Saver(tf.all_variables())
@@ -80,7 +80,7 @@ def main(root_dir, log_dir):
 	
 		#restore step
 		global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
-		print('Restored')
+		print('Restored %s step model'%(global_step))
 	else:
 		print('No checkpoint file found')
 
